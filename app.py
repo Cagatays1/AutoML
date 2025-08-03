@@ -1,164 +1,173 @@
+# KötüML GÜNCELLENMİŞ ARAYÜZ (Streamlit)
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import seaborn as sns
 import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
 import joblib
-
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, classification_report, confusion_matrix, roc_curve, auc
+from sklearn.svm import SVR, SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, classification_report, confusion_matrix
 
-st.set_page_config(page_title="Veri Görselleştirme ve Modelleme", layout="wide")
-st.title("📊 Veri Görselleştirme ve Makine Öğrenmesi Uygulaması")
+st.set_page_config(page_title="KötüML - Akıllı ML Aracı", layout="wide")
+st.title("🤖 KötüML: Akıllı Makine Öğrenmesi Yardımcısı")
 
 with st.sidebar:
-    st.markdown("## 💼 Proje: kötüML")
-    st.caption("Makine öğrenmesi ve veri analizi için interaktif uygulama")
+    st.markdown("## 🚀 Proje: KötüML")
+    st.caption("Bir makine öğrenmesi ve veri analiz platformu.")
 
-secenek = st.radio("🔍 Ne yapmak istiyorsunuz?", [
-    "Veri setini yükle ve eksik verileri incele",
-    "Grafikleri görselleştir",
-    "Model eğit ve değerlendir"
-])
-
+# Global veri saklama
 if "df" not in st.session_state:
-    st.session_state["df"] = None
+    st.session_state.df = None
+if "model" not in st.session_state:
+    st.session_state.model = None
+if "features" not in st.session_state:
+    st.session_state.features = None
 
-if secenek == "Veri setini yükle ve eksik verileri incele":
-    uploaded_file = st.file_uploader("Bir CSV dosyası yükleyin", type=["csv"])
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file, na_values=["None", "none", "NULL", "null", "NaN", "nan", ""])
-        st.session_state["df"] = df
-    df = st.session_state["df"]
+# Ana işlem menüsü
+st.header("👋 Hoş geldiniz!")
+secenek = st.selectbox("Ne yapmak istiyorsunuz?", (
+    "Veri seti yükle ve eksik verileri doldur",
+    "Veriyi analiz et ve grafikleri incele",
+    "Model eğit",
+    "Tahmin yap (eğitilmiş modeli kullan)"
+))
+
+# 1. Veri Yükleme ve Eksik Veri Doldurma
+if secenek == "Veri seti yükle ve eksik verileri doldur":
+    uploaded_file = st.file_uploader("CSV dosyası yükleyin", type="csv")
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+        st.session_state.df = df
+        st.success("✅ Veri yüklendi!")
+        st.dataframe(df.head())
+
+        st.subheader("🔍 Eksik Verileri İncele")
+        st.write(df.isnull().sum())
+
+        if st.button("Tüm sayısal eksikleri ortalama ile doldur"):
+            df = df.fillna(df.mean(numeric_only=True))
+            st.session_state.df = df
+            st.success("Eksik değerler dolduruldu!")
+
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Doldurulmuş CSV'yi indir", csv, file_name="doldurulmus_veri.csv", mime='text/csv')
+
+# 2. Grafik İnceleme
+elif secenek == "Veriyi analiz et ve grafikleri incele":
+    df = st.session_state.df
     if df is not None:
-        st.success("✅ Dosya başarıyla yüklendi!")
+        st.subheader("📊 Korelasyon Matrisi")
+        fig_corr, ax = plt.subplots(figsize=(10, 6))
+        sns.heatmap(df.corr(numeric_only=True), annot=True, cmap="coolwarm", ax=ax)
+        st.pyplot(fig_corr)
 
-        max_rows = min(len(df), 100)
-        num_rows = st.slider("Kaç satır görmek istersin?", min_value=5, max_value=max_rows, value=10)
-        st.subheader("📋 Veri Önizlemesi")
-        st.dataframe(df.head(num_rows))
+        st.subheader("📈 Histogram")
+        num_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+        selected_col = st.selectbox("Histogram için sütun seç", num_cols)
+        fig_hist = px.histogram(df, x=selected_col)
+        st.plotly_chart(fig_hist)
 
-        st.subheader("🧪 Eksik Verileri Doldurma")
-        total_missing = df.isnull().sum().sum()
-        st.write(f"Toplam eksik değer sayısı: `{int(total_missing)}`")
-
-        if total_missing > 0:
-            if st.button("Tüm sayısal sütunlardaki eksik verileri ortalama ile doldur"):
-                numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-                for col in numeric_cols:
-                    if df[col].isnull().any():
-                        df[col].fillna(df[col].mean(), inplace=True)
-                st.session_state["df"] = df
-                st.success("Eksik veriler ortalama ile dolduruldu ✅")
-                st.write(f"Kalan eksik değer sayısı: `{int(df.isnull().sum().sum())}`")
-
-                st.subheader("📅 Güncellenmiş CSV'yi İndir")
-                csv_download = df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📂 Güncellenmiş CSV'yi indir",
-                    data=csv_download,
-                    file_name="guncellenmis_veri.csv",
-                    mime='text/csv'
-                )
+        st.subheader("📊 Kategorik Veri Pasta Grafiği")
+        cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+        if cat_cols:
+            selected_cat = st.selectbox("Pasta grafik için sütun seç", cat_cols)
+            fig_pie = px.pie(df, names=selected_cat)
+            st.plotly_chart(fig_pie)
         else:
-            st.info("Veride eksik değer bulunmamaktadır.")
+            st.info("Kategorik veri sütunu bulunamadı.")
 
-elif secenek == "Grafikleri görselleştir":
-    df = st.session_state["df"]
+# 3. Model Eğitimi
+elif secenek == "Model eğit":
+    df = st.session_state.df
     if df is not None:
-        numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
-        categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
-
-        st.sidebar.header("📌 Grafik Ayarları")
-        chart_type = st.sidebar.selectbox("Grafik türünü seçin", ["Histogram", "Boxplot", "Korelasyon Isı Haritası", "Pie Chart"])
-
-        fig = None
-        if chart_type == "Histogram":
-            column = st.sidebar.selectbox("Sütun seçin", numeric_columns)
-            fig = px.histogram(df, x=column)
-            st.plotly_chart(fig)
-
-        elif chart_type == "Boxplot":
-            column = st.sidebar.selectbox("Sütun seçin", numeric_columns)
-            fig = px.box(df, y=column)
-            st.plotly_chart(fig)
-
-        elif chart_type == "Korelasyon Isı Haritası":
-            st.subheader("📈 Korelasyon Matrisi")
-            fig_, ax = plt.subplots(figsize=(10, 8))
-            sns.heatmap(df.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
-            st.pyplot(fig_)
-
-        elif chart_type == "Pie Chart":
-            if categorical_columns:
-                column = st.sidebar.selectbox("Kategorik sütun seçin", categorical_columns)
-                value_counts = df[column].value_counts().reset_index()
-                value_counts.columns = [column, "Count"]
-                fig = px.pie(value_counts, names=column, values="Count", hole=0.4)
-                st.plotly_chart(fig)
-            else:
-                st.warning("Uygun kategorik sütun bulunamadı.")
-
-elif secenek == "Model eğit ve değerlendir":
-    st.header("🎯 Makine Öğrenmesi: Model Eğitimi")
-    df = st.session_state["df"]
-    if df is not None:
-        target = st.selectbox("🌟 Hedef değişkeni seçin (label)", df.columns)
-        features = st.multiselect("🧠 Özellik sütunlarını seçin (feature)", df.columns.drop(target))
+        st.subheader("🎯 Hedef ve Özellik Seçimi")
+        target = st.selectbox("Hedef sütunu seçin", df.columns)
+        features = st.multiselect("Özellik sütunlarını seçin", df.columns.drop(target))
 
         if features:
-            if df[target].dtype in ['float64', 'int64'] and df[target].nunique() > 10:
-                problem_type = "Regresyon"
-                model_dict = {
+            X = df[features]
+            y = df[target]
+
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            # Problem tipi belirleme
+            if y.dtype in ['float64', 'int64'] and y.nunique() > 10:
+                problem_type = "regression"
+                model_options = {
                     "Linear Regression": LinearRegression(),
                     "Decision Tree Regressor": DecisionTreeRegressor(),
-                    "Random Forest Regressor": RandomForestRegressor()
+                    "Random Forest Regressor": RandomForestRegressor(),
+                    "SVR": SVR()
                 }
             else:
-                problem_type = "Sınıflandırma"
-                model_dict = {
+                problem_type = "classification"
+                model_options = {
                     "Logistic Regression": LogisticRegression(max_iter=1000),
                     "Decision Tree Classifier": DecisionTreeClassifier(),
-                    "Random Forest Classifier": RandomForestClassifier()
+                    "Random Forest Classifier": RandomForestClassifier(),
+                    "KNN": KNeighborsClassifier(),
+                    "SVM": SVC(),
+                    "Naive Bayes": GaussianNB()
                 }
 
-            st.markdown(f"**Algılanan Problem Türü:** :green[{problem_type}]")
+            st.markdown(f"### 🤖 Önerilen modeller: {', '.join(model_options.keys())}")
 
-            model_names = list(model_dict.keys())
-            selected_model_name = st.selectbox("Model seçin", model_names)
-            selected_model = model_dict[selected_model_name]
+            selected_model_name = st.selectbox("Model seçin", list(model_options.keys()))
+            model = model_options[selected_model_name]
 
             if st.button("🚀 Modeli Eğit"):
-                try:
-                    X = df[features]
-                    y = df[target]
+                model.fit(X_train, y_train)
+                st.session_state.model = model
+                st.session_state.features = features
 
-                    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-                    selected_model.fit(X_train, y_train)
-                    y_pred = selected_model.predict(X_test)
+                y_pred = model.predict(X_test)
+                if problem_type == "regression":
+                    st.metric("MSE", f"{mean_squared_error(y_test, y_pred):.4f}")
+                    st.metric("R²", f"{r2_score(y_test, y_pred):.4f}")
+                else:
+                    st.metric("Accuracy", f"{accuracy_score(y_test, y_pred):.4f}")
+                    st.text(classification_report(y_test, y_pred))
 
-                    st.success("✅ Model eğitildi! Artık tahmin için hazır.")
+                joblib.dump({"model": model, "features": features}, "egitilmis_model.pkl")
+                with open("egitilmis_model.pkl", "rb") as f:
+                    st.download_button("📦 Eğitilen Modeli İndir (.pkl)", f, file_name="model.pkl")
 
-                    st.markdown("### 🔢 Kullanılan Özellikler")
-                    st.code(", ".join(X_train.columns), language="markdown")
+# 4. Tahmin
+elif secenek == "Tahmin yap (eğitilmiş modeli kullan)":
+    uploaded_model = st.file_uploader("Eğitilmiş model dosyasını (.pkl) yükleyin", type="pkl")
+    if uploaded_model:
+        model_data = joblib.load(uploaded_model)
+        model = model_data["model"]
+        features = model_data["features"]
 
-                    if problem_type == "Regresyon":
-                        mse = mean_squared_error(y_test, y_pred)
-                        r2 = r2_score(y_test, y_pred)
-                        st.markdown(f"📉 Ortalama Kare Hata (MSE): `{mse:.4f}`")
-                        st.markdown(f"📈 R² Skoru: `{r2:.4f}`")
+        st.session_state.model = model
+        st.session_state.features = features
 
-                    else:
-                        acc = accuracy_score(y_test, y_pred)
-                        st.markdown(f"📊 Doğruluk (Accuracy): `{acc:.4f}`")
-                        st.text("Sınıflandırma Raporu:")
-                        st.text(classification_report(y_test, y_pred))
-                except Exception as e:
-                    st.error(f"Bir hata oluştu: {e}")
-        else:
-            st.warning("⚠️ Lütfen en az bir özellik (feature) seçin.")
+        st.success("✅ Model başarıyla yüklendi!")
+
+    model = st.session_state.get("model")
+    features = st.session_state.get("features")
+
+    if model and features:
+        st.subheader("📝 Tahmin için giriş değerleri")
+        user_input = {}
+        for feat in features:
+            user_input[feat] = st.number_input(f"{feat}", step=0.01)
+        input_df = pd.DataFrame([user_input])
+
+        if st.button("📈 Tahmin Yap"):
+            prediction = model.predict(input_df)[0]
+            readable_result = "✅ İçilebilir" if prediction == 1 else "🚫 İçilemez"
+            st.success(f"🔮 Tahmin Sonucu: {prediction}({readable_result})")
+
+            st.download_button("📄 Bu tahmini indir (.csv)",
+                               input_df.assign(Prediction=prediction).to_csv(index=False),
+                               file_name="tahmin_sonucu.csv", mime="text/csv")
+    else:
+        st.warning("Eğitilmiş model bulunamadı. Lütfen önce model yükleyin veya eğitin.")
