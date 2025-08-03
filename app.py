@@ -1,4 +1,4 @@
-# KötüML GÜNCELLENMİŞ ARAYÜZ (Streamlit)
+# MLPoint GÜNCELLENMİŞ ARAYÜZ (Streamlit)
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ st.set_page_config(page_title="MLPoint - Akıllı ML Aracı", layout="wide")
 st.title("🤖 MLPoint: Akıllı Makine Öğrenmesi Yardımcısı")
 
 with st.sidebar:
-    st.markdown("## 🚀 Proje: KötüML")
+    st.markdown("## 🚀 Proje: MLPoint")
     st.caption("Bir makine öğrenmesi ve veri analiz platformu.")
 
 # Global veri saklama
@@ -171,4 +171,5 @@ elif secenek == "Tahmin yap (eğitilmiş modeli kullan)":
                                file_name="tahmin_sonucu.csv", mime="text/csv")
     else:
         st.warning("Eğitilmiş model bulunamadı. Lütfen önce model yükleyin veya eğitin.")
+
 
