@@ -14,8 +14,8 @@ from sklearn.svm import SVR, SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, classification_report, confusion_matrix
 
-st.set_page_config(page_title="KötüML - Akıllı ML Aracı", layout="wide")
-st.title("🤖 KötüML: Akıllı Makine Öğrenmesi Yardımcısı")
+st.set_page_config(page_title="MLPoint - Akıllı ML Aracı", layout="wide")
+st.title("🤖 MLPoint: Akıllı Makine Öğrenmesi Yardımcısı")
 
 with st.sidebar:
     st.markdown("## 🚀 Proje: KötüML")
@@ -171,3 +171,4 @@ elif secenek == "Tahmin yap (eğitilmiş modeli kullan)":
                                file_name="tahmin_sonucu.csv", mime="text/csv")
     else:
         st.warning("Eğitilmiş model bulunamadı. Lütfen önce model yükleyin veya eğitin.")
+
